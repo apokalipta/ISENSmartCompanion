@@ -18,20 +18,22 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,9 +45,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.isen.barnay.isensmartcompanion.ai.GeminiManager
 import fr.isen.barnay.isensmartcompanion.navigation.AppNavigation
 import fr.isen.barnay.isensmartcompanion.ui.theme.ISENRed
 import fr.isen.barnay.isensmartcompanion.ui.theme.ISENSmartCompanionTheme
+import kotlinx.coroutines.launch
 
 // Définition d'une classe pour représenter un échange de messages
 data class MessageExchange(
@@ -76,6 +80,21 @@ fun MainScreen(modifier: Modifier = Modifier) {
     val messageHistory = remember { mutableStateListOf<MessageExchange>() }
     // ScrollState pour permettre le défilement
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    
+    // Instance de GeminiManager
+    val geminiManager = remember { GeminiManager() }
+    
+    // État pour suivre si une requête est en cours
+    var isLoading by remember { mutableStateOf(false) }
+    
+    // Scope pour lancer des coroutines
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Pour faire défiler automatiquement vers le bas quand un nouveau message est ajouté
+    LaunchedEffect(messageHistory.size) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
     
     Box(
         modifier = modifier.fillMaxSize()
@@ -145,7 +164,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                                 modifier = Modifier.padding(16.dp)
                             ) {
                                 Text(
-                                    text = "Smart Copaing :",
+                                    text = "Smart Companion :",
                                     fontWeight = FontWeight.Bold,
                                     color = Color.DarkGray
                                 )
@@ -163,7 +182,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
             } else {
                 // Message d'information lorsqu'il n'y a pas encore de messages
                 Text(
-                    text = "Posez une question pour commencer la conversation",
+                    text = "Posez une question pour commencer la conversation avec l'IA Gemini",
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -176,16 +195,62 @@ fun MainScreen(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(80.dp))
         }
         
+        // Indicateur de chargement
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = ISENRed,
+                    modifier = Modifier.padding(bottom = 100.dp)
+                )
+            }
+        }
+        
         // Champ de texte avec bouton en bas
         ChatInputField(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(16.dp),
             onMessageSent = { userMessage ->
-                val response = generateResponse(userMessage)
-                // Ajouter le nouvel échange à l'historique
-                messageHistory.add(MessageExchange(userMessage, response))
-            }
+                // Ajout du message de l'utilisateur avec un message de chargement
+                val pendingMessage = MessageExchange(userMessage, "Génération de la réponse en cours...")
+                messageHistory.add(pendingMessage)
+                
+                // Affichage de l'indicateur de chargement
+                isLoading = true
+                
+                coroutineScope.launch {
+                    try {
+                        // Appel à l'API Gemini
+                        val response = geminiManager.generateResponse(userMessage)
+                        
+                        // Mise à jour du message avec la réponse de l'IA
+                        val updatedMessages = messageHistory.toMutableList()
+                        updatedMessages[updatedMessages.lastIndex] = MessageExchange(userMessage, response)
+                        
+                        // Mise à jour de la liste des messages
+                        messageHistory.clear()
+                        messageHistory.addAll(updatedMessages)
+                    } catch (e: Exception) {
+                        // En cas d'erreur, afficher un message d'erreur
+                        val updatedMessages = messageHistory.toMutableList()
+                        updatedMessages[updatedMessages.lastIndex] = MessageExchange(
+                            userMessage,
+                            "Désolé, une erreur s'est produite: ${e.message ?: "erreur inconnue"}"
+                        )
+                        
+                        // Mise à jour de la liste des messages
+                        messageHistory.clear()
+                        messageHistory.addAll(updatedMessages)
+                    } finally {
+                        // Désactivation de l'indicateur de chargement
+                        isLoading = false
+                    }
+                }
+            },
+            isEnabled = !isLoading
         )
     }
 }
@@ -193,7 +258,8 @@ fun MainScreen(modifier: Modifier = Modifier) {
 @Composable
 fun ChatInputField(
     modifier: Modifier = Modifier,
-    onMessageSent: (String) -> Unit
+    onMessageSent: (String) -> Unit,
+    isEnabled: Boolean = true
 ) {
     var text by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -215,23 +281,25 @@ fun ChatInputField(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
+            enabled = isEnabled,
             trailingIcon = {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = ISENRed,
+                    color = if (!isEnabled) Color.Gray else ISENRed,
                     modifier = Modifier.padding(2.dp)
                 ) {
                     IconButton(
                         onClick = {
-                            if (text.isNotEmpty()) {
+                            if (text.isNotEmpty() && isEnabled) {
                                 Toast.makeText(context, "Question envoyée", Toast.LENGTH_SHORT).show()
                                 onMessageSent(text)
                                 text = ""
                             }
-                        }
+                        },
+                        enabled = isEnabled
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowForward,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Send",
                             tint = Color.White
                         )
@@ -241,7 +309,7 @@ fun ChatInputField(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(
                 onSend = {
-                    if (text.isNotEmpty()) {
+                    if (text.isNotEmpty() && isEnabled) {
                         Toast.makeText(context, "Question envoyée", Toast.LENGTH_SHORT).show()
                         onMessageSent(text)
                         text = ""
@@ -250,20 +318,6 @@ fun ChatInputField(
             ),
             shape = RoundedCornerShape(28.dp)
         )
-    }
-}
-
-// Fonction pour générer une réponse en fonction de la question
-private fun generateResponse(question: String): String {
-    return when {
-        question.contains("bonjour", ignoreCase = true) -> "Bonjour ! Comment puis-je vous aider aujourd'hui ?"
-        question.contains("heure", ignoreCase = true) -> "Il est l'heure de consulter votre montre !"
-        question.contains("isen", ignoreCase = true) -> "ISEN est une école d'ingénieurs en France."
-        question.contains("android", ignoreCase = true) -> "Android est un système d'exploitation mobile développé par Google."
-        question.contains("kotlin", ignoreCase = true) -> "Kotlin est un langage de programmation moderne utilisé pour le développement Android."
-        question.contains("jetpack compose", ignoreCase = true) -> "Jetpack Compose est une boîte à outils moderne pour créer des interfaces utilisateur Android."
-        question.length < 5 -> "Pourriez-vous me donner plus de détails ?"
-        else -> "Je ne suis pas sûr de comprendre votre question. Pouvez-vous reformuler ?"
     }
 }
 
