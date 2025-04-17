@@ -32,6 +32,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -55,7 +56,9 @@ dependencies {
     
     // Navigation Compose
     implementation(libs.androidx.navigation.compose)
-    
+
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
     // Icons Extended
     implementation(libs.androidx.material.icons.extended)
     

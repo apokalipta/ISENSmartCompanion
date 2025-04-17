@@ -69,7 +69,7 @@ fun EventDetailScreen(
                                 scheduleNotification(
                                     context = context,
                                     title = event.title,
-                                    message = "Rappel de l'événement dans 10 secondes",
+                                    message = "Attention, l'événement ${event.title} va commencer !",
                                     delayInSeconds = 10
                                 )
                             }

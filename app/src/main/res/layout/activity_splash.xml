@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@android:color/white">
+
+    <ImageView
+        android:id="@+id/isen_logo"
+        android:layout_width="wrap_content"
+        android:layout_height="80dp"
+        android:src="@drawable/isen_logo"
+        android:contentDescription="Logo ISEN" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ISEN Méditerranée"
+        android:textColor="#D0021B"
+        android:textStyle="bold"
+        android:textSize="24sp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"/>
+
+    <ImageView
+        android:id="@+id/bot_logo"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/logo"
+        android:contentDescription="Logo Robot" />
+
+</LinearLayout>
