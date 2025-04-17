@@ -36,24 +36,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import fr.isen.barnay.isensmartcompanion.MessageExchange
 import fr.isen.barnay.isensmartcompanion.ai.GeminiManager
+import fr.isen.barnay.isensmartcompanion.models.MessageExchange
 import fr.isen.barnay.isensmartcompanion.ui.theme.ISENRed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
+import fr.isen.barnay.isensmartcompanion.viewmodels.ConversationViewModel
+import androidx.compose.ui.text.input.ImeAction
+
 
 @Composable
 fun HomeScreen() {
     val messageHistory = remember { mutableStateListOf<MessageExchange>() }
     val scrollState = rememberScrollState()
-    LocalContext.current
+    val context = LocalContext.current
     
     // Initialiser GeminiManager
     val geminiManager = remember { GeminiManager() }
+    
+    // Initialiser le ViewModel pour la persistance des conversations
+    val conversationViewModel: ConversationViewModel = viewModel()
     
     // État pour suivre si une requête est en cours
     var isLoading by remember { mutableStateOf(false) }
@@ -214,6 +220,9 @@ fun HomeScreen() {
                         updatedMessages[updatedMessages.lastIndex] = MessageExchange(userMessage, response)
                         messageHistory.clear()
                         messageHistory.addAll(updatedMessages)
+                        
+                        // Sauvegarde de la conversation dans la base de données
+                        conversationViewModel.insertConversation(userMessage, response)
                     } catch (e: Exception) {
                         // Gestion des erreurs
                         val errorMessages = messageHistory.toMutableList()

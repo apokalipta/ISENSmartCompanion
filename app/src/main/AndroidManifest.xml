@@ -4,6 +4,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+
 
     <application
         android:allowBackup="true"
@@ -16,13 +19,16 @@
         android:theme="@style/Theme.ISENSmartCompanion"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+
+        <!-- 🔔 Déclaration du BroadcastReceiver pour les notifications -->
+        <receiver android:name=".NotificationReceiver" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.ISENSmartCompanion">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

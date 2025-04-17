@@ -14,14 +14,8 @@ import java.net.URL
  */
 object EventApi {
     private const val TAG = "EventApi"
-    
-    // URL Firebase pour récupérer les événements
     private const val API_URL = "https://isen-smart-companion-default-rtdb.europe-west1.firebasedatabase.app/events.json"
-    
-    /**
-     * Récupère la liste des événements
-     * @return Liste d'événements ou liste vide en cas d'erreur
-     */
+
     suspend fun getEvents(): List<Event> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Tentative de récupération des événements depuis: $API_URL")
@@ -57,14 +51,9 @@ object EventApi {
         }
     }
     
-    /**
-     * Parse le JSON en liste d'événements
-     * Format Firebase : un objet principal contenant des objets événements
-     */
     private fun parseEventsFromJson(jsonString: String): List<Event> {
         val events = mutableListOf<Event>()
         try {
-            // Vérifier si le JSON est vide ou null
             if (jsonString.isBlank() || jsonString == "null") {
                 Log.e(TAG, "JSON vide ou null")
                 return emptyList()
@@ -72,13 +61,11 @@ object EventApi {
             
             val jsonObject = JSONObject(jsonString)
             
-            // Vérifier si l'objet est vide
             if (jsonObject.length() == 0) {
                 Log.e(TAG, "Objet JSON vide")
                 return emptyList()
             }
             
-            // Traiter chaque clé comme un événement
             val iterator = jsonObject.keys()
             while (iterator.hasNext()) {
                 val key = iterator.next()
@@ -108,7 +95,6 @@ object EventApi {
         } catch (e: Exception) {
             Log.e(TAG, "Exception générale lors du parsing JSON", e)
             
-            // Essayer une approche différente (tableau JSON)
             try {
                 val jsonArray = JSONArray(jsonString)
                 

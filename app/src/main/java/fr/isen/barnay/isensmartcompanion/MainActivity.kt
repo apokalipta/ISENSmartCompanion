@@ -1,5 +1,8 @@
 package fr.isen.barnay.isensmartcompanion
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -45,6 +48,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import fr.isen.barnay.isensmartcompanion.ai.GeminiManager
 import fr.isen.barnay.isensmartcompanion.navigation.AppNavigation
 import fr.isen.barnay.isensmartcompanion.ui.theme.ISENRed
@@ -52,15 +57,34 @@ import fr.isen.barnay.isensmartcompanion.ui.theme.ISENSmartCompanionTheme
 import kotlinx.coroutines.launch
 
 // Définition d'une classe pour représenter un échange de messages
+
 data class MessageExchange(
     val userMessage: String,
     val responseMessage: String
 )
 
 class MainActivity : ComponentActivity() {
+    private val REQ_POST_NOTIF = 100
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Demande de la permission POST_NOTIFICATIONS sur Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    REQ_POST_NOTIF
+                )
+            }
+        }
+
         setContent {
             ISENSmartCompanionTheme {
                 Surface(
@@ -69,6 +93,21 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigation()
                 }
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_POST_NOTIF) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Permission notifications accordée", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Permission notifications refusée", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -81,21 +120,21 @@ fun MainScreen(modifier: Modifier = Modifier) {
     // ScrollState pour permettre le défilement
     val scrollState = rememberScrollState()
     val context = LocalContext.current
-    
+
     // Instance de GeminiManager
     val geminiManager = remember { GeminiManager() }
-    
+
     // État pour suivre si une requête est en cours
     var isLoading by remember { mutableStateOf(false) }
-    
+
     // Scope pour lancer des coroutines
     val coroutineScope = rememberCoroutineScope()
-    
+
     // Pour faire défiler automatiquement vers le bas quand un nouveau message est ajouté
     LaunchedEffect(messageHistory.size) {
         scrollState.animateScrollTo(scrollState.maxValue)
     }
-    
+
     Box(
         modifier = modifier.fillMaxSize()
     ) {
@@ -119,7 +158,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 fontSize = 20.sp,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
-            
+
             // Affichage de l'historique des échanges
             if (messageHistory.isNotEmpty()) {
                 Column(
@@ -151,7 +190,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                                 )
                             }
                         }
-                        
+
                         // Réponse du système
                         Surface(
                             modifier = Modifier
@@ -175,7 +214,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                                 )
                             }
                         }
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
@@ -190,11 +229,11 @@ fun MainScreen(modifier: Modifier = Modifier) {
                         .fillMaxWidth()
                 )
             }
-            
+
             // Espace en bas pour éviter que le champ de texte ne cache le dernier message
             Spacer(modifier = Modifier.height(80.dp))
         }
-        
+
         // Indicateur de chargement
         if (isLoading) {
             Box(
@@ -207,7 +246,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
-        
+
         // Champ de texte avec bouton en bas
         ChatInputField(
             modifier = Modifier
@@ -217,19 +256,19 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 // Ajout du message de l'utilisateur avec un message de chargement
                 val pendingMessage = MessageExchange(userMessage, "Génération de la réponse en cours...")
                 messageHistory.add(pendingMessage)
-                
+
                 // Affichage de l'indicateur de chargement
                 isLoading = true
-                
+
                 coroutineScope.launch {
                     try {
                         // Appel à l'API Gemini
                         val response = geminiManager.generateResponse(userMessage)
-                        
+
                         // Mise à jour du message avec la réponse de l'IA
                         val updatedMessages = messageHistory.toMutableList()
                         updatedMessages[updatedMessages.lastIndex] = MessageExchange(userMessage, response)
-                        
+
                         // Mise à jour de la liste des messages
                         messageHistory.clear()
                         messageHistory.addAll(updatedMessages)
@@ -240,7 +279,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                             userMessage,
                             "Désolé, une erreur s'est produite: ${e.message ?: "erreur inconnue"}"
                         )
-                        
+
                         // Mise à jour de la liste des messages
                         messageHistory.clear()
                         messageHistory.addAll(updatedMessages)
@@ -263,7 +302,7 @@ fun ChatInputField(
 ) {
     var text by remember { mutableStateOf("") }
     val context = LocalContext.current
-    
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
